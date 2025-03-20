@@ -57,26 +57,6 @@ async def generate_content_async(input_text):
         - response: your response
         - suggestions: list of short question related to the main user's question but that can answered based on the facts. Add only questions that can be answered BASED ON the facts. If there is no question, then give the following list of questions: \"About Ivan\", \"Projects\", \"Work experience\", \"Contact Information\", \"CV”, “Book an appointment”. Take out any suggested question the user has ask before from the list."""
 
-        # generate_content_config = types.GenerationConfig( # Use types.GenerationConfig
-        #         temperature=0,
-        #         top_p=0.95,
-        #         top_k=40,
-        #         max_output_tokens=8192,
-        #         response_mime_type="text/plain"
-        #     )
-        
-        # chat_config = types.GenerateContentConfig(
-        #     system_instruction=system_instruction,
-        #     temperature=0,
-        # )
-
-
-        # Run the asynchronous call generate_content using asyncio.run()
-        # response = await client.aio.models.generate_content(
-        #     model=MODEL_ID,
-        #     contents=contents,
-        #     config=generate_content_config,
-        # )
         tools = [
                 types.Tool(
                     function_declarations=[
