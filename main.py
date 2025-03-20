@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 import datetime
+import uuid  # Add this import for generating unique IDs
 from zoneinfo import ZoneInfo  # For timezone handling
 from dotenv import load_dotenv
 from google import genai
@@ -13,6 +14,24 @@ from google.genai.types import (
     Part,
     Tool,
 )
+
+# email
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+# Load service account credentials from environment variable
+#os.getenv('GEMINI_API_KEY')
+#SERVICE_ACCOUNT_INFO = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
+with open(os.path.join(os.path.dirname(__file__), 'personal-assistant-2025-edcd74d26375.json')) as f:
+    SERVICE_ACCOUNT_INFO = json.load(f)
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+credentials = service_account.Credentials.from_service_account_info(
+    SERVICE_ACCOUNT_INFO, scopes=SCOPES
+)
+
+# Initialize Google Calendar API
+service = build("calendar", "v3", credentials=credentials)
 
 def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
     if response.function_calls is None:
@@ -202,6 +221,25 @@ async def generate_content_async(chat):
                     # Determine which external API call to make
                     if function_name == "makeAppointment":
                         result = "Appointment made successfully."
+
+                        event = {
+                            "summary": "Ivan Appointment",
+                            "description": "description",
+                            "start": {"dateTime": "2025-03-25T10:00:00", "timeZone": "Europe/London"},
+                            "end": {"dateTime": "2025-03-25T11:00:00", "timeZone": "Europe/London"},
+                            "conferenceData": {
+                                "createRequest": {
+                                    "requestId": str(uuid.uuid4()),
+                                    
+                                }
+                            },
+                        }
+
+                        event = service.events().insert(
+                            calendarId="8fcf00a41b1d8b5ca37408238ce07c9d1abd6873e3d792f4cef9217853fcda02@group.calendar.google.com", body=event, conferenceDataVersion=1
+                        ).execute()
+
+                        print(event.get("htmlLink"))
                     #if function_name == "suggest_wikipedia":
                         #result = wikipedia.suggest(function_args["query"])
                     #if function_name == "summarize_wikipedia":
