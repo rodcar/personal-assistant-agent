@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from google.genai.types import (
@@ -35,7 +36,8 @@ def read_system_instruction(file_path):
 async def generate_content_async(chat):
     try:
         # Initialize Gemini API client
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        #client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
         MODEL_ID = "gemini-2.0-flash-lite"
 
