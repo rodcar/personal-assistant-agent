@@ -1,7 +1,15 @@
 import os
+import json
 import asyncio
 from google import genai
 from google.genai import types
+from google.genai.types import (
+    FunctionDeclaration,
+    GenerateContentConfig,
+    GenerateContentResponse,
+    Part,
+    Tool,
+)
 
 def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
     function_calls: list[dict] = []
@@ -24,20 +32,25 @@ def read_system_instruction(file_path):
         # Fall back to a simple instruction if the file can't be read   
         return "You are a helpful assistant for Ivan. Answer questions professionally."
 
-async def generate_content_async(input_text):
+async def generate_content_async(chat):
     try:
         # Initialize Gemini API client
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
         MODEL_ID = "gemini-2.0-flash-lite"
 
+        # Use chat directly instead of parsing it again
+        data = chat
+
+        # Generate the contents list from the input_text list
         contents = [
             types.Content(
-                role="user",
+                role=item["role"],
                 parts=[
-                    types.Part.from_text(text=input_text),
+                    types.Part.from_text(text=item["parts"]),
                 ],
             )
+            for item in data
         ]
         
         # Read system instruction from file
@@ -115,7 +128,7 @@ async def generate_content_async(input_text):
         extracted_functions_called = extract_function_calls(response)
 
         if extracted_functions_called:
-            pass
+            return str(extracted_functions_called)
 
         return response.text
     except Exception as e:
@@ -137,21 +150,39 @@ def generate_content(request):
     if request.method != "POST":
         return "Method not allowed. Use POST.", 405
 
-    # Get JSON data from the request
-    request_data = request.get_json(silent=True)
-    if not request_data or "input_text" not in request_data:
-        return '{"error": "Missing \'input_text\' parameter"}', 400
-
-    input_text = request_data["input_text"]
-    if not input_text:
-        return '{"error": "\'input_text\' cannot be empty"}', 400
-
     try:
+        # Get JSON data from the request with more detailed error handling
+        request_data = request.get_json(silent=True)
+        if not request_data:
+            return json.dumps({"error": "Invalid JSON or empty request body"}), 400, {'Content-Type': 'application/json'}
+        
+        # Check if chat exists in the request data
+        if "chat" not in request_data:
+            return json.dumps({"error": "Missing 'chat' field in request"}), 400, {'Content-Type': 'application/json'}
+        
+        chat = request_data["chat"]
+        
+        # Verify chat is a list
+        if not isinstance(chat, list):
+            return json.dumps({"error": f"'chat' must be a list, got {type(chat).__name__}"}), 400, {'Content-Type': 'application/json'}
+        
+        if not chat:
+            return json.dumps({"error": "'chat' cannot be empty"}), 400, {'Content-Type': 'application/json'}
+            
         # Run the asynchronous function using asyncio.run()
-        generated_text = asyncio.run(generate_content_async(input_text))
-        return f'{{"generated_text": "{generated_text}"}}', 200
+        generated_text = asyncio.run(generate_content_async(chat))
+        
+        # Properly format the JSON response
+        response_data = {"generated_text": generated_text}
+        return json.dumps(response_data), 200, {'Content-Type': 'application/json'}
     except Exception as e:
-        return f'{{"error": "{str(e)}"}}', 500
+        # Include traceback for better debugging
+        import traceback
+        error_response = {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+        return json.dumps(error_response), 500, {'Content-Type': 'application/json'}
 
 def main(request):
     return generate_content(request)
