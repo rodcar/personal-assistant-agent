@@ -1,0 +1,3 @@
+# No additional dependencies are needed for this simple function
+#google-generativeai==0.3.2
+google-genai
