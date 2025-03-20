@@ -3,6 +3,15 @@ import asyncio
 from google import genai
 from google.genai import types
 
+def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
+    function_calls: list[dict] = []
+    for function_call in response.function_calls:
+        function_call_dict: dict[str, dict[str, Any]] = {function_call.name: {}}
+        for key, value in function_call.args.items():
+            function_call_dict[function_call.name][key] = value
+        function_calls.append(function_call_dict)
+    return function_calls
+
 def read_system_instruction(file_path):
     """Read system instruction from a file."""
     try:
@@ -90,6 +99,7 @@ async def generate_content_async(input_text):
             top_p=0.95,
             top_k=40,
             max_output_tokens=8192,
+            tools=tools,
             response_mime_type="text/plain",
             system_instruction=[
                 types.Part.from_text(text=system_instruction),
@@ -102,6 +112,10 @@ async def generate_content_async(input_text):
             config=generate_content_config
         )
 
+        extracted_functions_called = extract_function_calls(response)
+
+        if extracted_functions_called:
+            pass
 
         return response.text
     except Exception as e:
