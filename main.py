@@ -1,6 +1,8 @@
 import os
 import json
 import asyncio
+import datetime
+from zoneinfo import ZoneInfo  # For timezone handling
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -12,22 +14,80 @@ from google.genai.types import (
     Tool,
 )
 
-def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
-    function_calls: list[dict] = []
-    for function_call in response.function_calls:
-        function_call_dict: dict[str, dict[str, Any]] = {function_call.name: {}}
-        for key, value in function_call.args.items():
-            function_call_dict[function_call.name][key] = value
-        function_calls.append(function_call_dict)
-    return function_calls
+# def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
+#     function_calls: list[dict] = []
+#     for function_call in response.function_calls:
+#         function_call_dict: dict[str, dict[str, Any]] = {function_call.name: {}}
+#         for key, value in function_call.args.items():
+#             function_call_dict[function_call.name][key] = value
+#         function_calls.append(function_call_dict)
+#     return function_calls
+
+def generate_dynamic_dates():
+    """Generate a string of dynamic dates based on the current date in London timezone."""
+    # Get current time in London/UK timezone
+    today = datetime.datetime.now(ZoneInfo("Europe/London"))
+    
+    date_info = []
+    
+    # Today
+    date_info.append(f"- Today date is {today.strftime('%d/%m/%Y')} ({today.strftime('%A')}).")
+    
+    # Tomorrow
+    tomorrow = today + datetime.timedelta(days=1)
+    date_info.append(f'- Tomorrow date is {tomorrow.strftime("%d/%m/%Y")} ({tomorrow.strftime("%A")}).')
+    
+    # In two days (labeled as "the day after tomorrow")
+    two_days = today + datetime.timedelta(days=2)
+    date_info.append(f'- "In two days" or "the day after tomorrow", the date is {two_days.strftime("%d/%m/%Y")} ({two_days.strftime("%A")}).')
+    
+    # In three days (labeled as "the day after tomorrow")
+    three_days = today + datetime.timedelta(days=3)
+    date_info.append(f'- "In three days" or "the day after tomorrow", the date is {three_days.strftime("%d/%m/%Y")} ({three_days.strftime("%A")}).')
+    
+    # Add 4-8 days
+    day_names = {4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight"}
+    for i in range(4, 9):
+        future_date = today + datetime.timedelta(days=i)
+        day_str = future_date.strftime("%A")
+        
+        # Special case for day 8
+        if i == 8:
+            date_info.append(f"- In {day_names[i]} days, the date is {future_date.strftime('%d/%m/%Y')} ({day_str} or \"next {day_str}\").")
+        else:
+            date_info.append(f"- In {day_names[i]} days, the date is {future_date.strftime('%d/%m/%Y')} ({day_str}).")
+    
+    return "\n".join(date_info)
 
 def read_system_instruction(file_path):
-    """Read system instruction from a file."""
+    """Read system instruction from a file and inject dynamic dates."""
     try:
         # Using absolute path to ensure reliability in cloud environment
         abs_path = os.path.join(os.path.dirname(__file__), file_path)
         with open(abs_path, 'r') as file:
-            return file.read()
+            content = file.read()
+        
+        # Generate dynamic dates
+        dynamic_dates = generate_dynamic_dates()
+        
+        # Replace the hardcoded date section with dynamic dates
+        appointment_phrase = "One function you have is to book appointments for Ivan. Here is a useful reminder of the current dates and references the user may say,USE THE FOLLOWING LIST YOUR INTERNAL USE, DO NOT SHOW THE USER:"
+        available_times_phrase = "And here are the times Ivan is available for appointments"
+        
+        if appointment_phrase in content and available_times_phrase in content:
+            parts = content.split(appointment_phrase)
+            if len(parts) == 2:
+                before_dates = parts[0] + appointment_phrase + "\n"
+                
+                after_dates_parts = parts[1].split(available_times_phrase)
+                if len(after_dates_parts) == 2:
+                    after_dates = "\n\n" + available_times_phrase + after_dates_parts[1]
+                    
+                    # Combine everything with the dynamic dates
+                    return before_dates + dynamic_dates + after_dates
+        
+        # If we couldn't find the markers or something went wrong, return the original content
+        return content
     except Exception as e:
         print(f"Error reading system instruction file: {e}")
         # Fall back to a simple instruction if the file can't be read   
@@ -127,10 +187,10 @@ async def generate_content_async(chat):
             config=generate_content_config
         )
 
-        extracted_functions_called = extract_function_calls(response)
+        #extracted_functions_called = extract_function_calls(response)
 
-        if extracted_functions_called:
-            return str(extracted_functions_called)
+        #if extracted_functions_called:
+            #return str(extracted_functions_called)
 
         return response.text
     except Exception as e:
