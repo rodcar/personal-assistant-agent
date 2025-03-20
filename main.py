@@ -14,14 +14,17 @@ from google.genai.types import (
     Tool,
 )
 
-# def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
-#     function_calls: list[dict] = []
-#     for function_call in response.function_calls:
-#         function_call_dict: dict[str, dict[str, Any]] = {function_call.name: {}}
-#         for key, value in function_call.args.items():
-#             function_call_dict[function_call.name][key] = value
-#         function_calls.append(function_call_dict)
-#     return function_calls
+def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
+    if response.function_calls is None:
+            return []
+
+    function_calls: list[dict] = []
+    for function_call in response.function_calls:
+        function_call_dict: dict[str, dict[str, Any]] = {function_call.name: {}}
+        for key, value in function_call.args.items():
+            function_call_dict[function_call.name][key] = value
+        function_calls.append(function_call_dict)
+    return function_calls
 
 def generate_dynamic_dates():
     """Generate a string of dynamic dates based on the current date in London timezone."""
@@ -187,7 +190,28 @@ async def generate_content_async(chat):
             config=generate_content_config
         )
 
-        #extracted_functions_called = extract_function_calls(response)
+        function_calls = extract_function_calls(response)
+
+        api_response: dict[str, Any] = {}  # type: ignore
+
+        # Loop over multiple function calls
+        if function_calls:
+            for function_call in function_calls:
+                print(function_call)
+                for function_name, function_args in function_call.items():
+                    # Determine which external API call to make
+                    if function_name == "makeAppointment":
+                        result = "Appointment made successfully."
+                    #if function_name == "suggest_wikipedia":
+                        #result = wikipedia.suggest(function_args["query"])
+                    #if function_name == "summarize_wikipedia":
+                        #result = wikipedia.summary(function_args["topic"], auto_suggest=False)
+
+                    # Collect all API responses
+                    api_response[function_name] = result
+
+        if api_response:
+            return json.dumps(api_response), 200, {'Content-Type': 'application/json'}
 
         #if extracted_functions_called:
             #return str(extracted_functions_called)
