@@ -3,16 +3,21 @@ import asyncio
 from google import genai
 from google.genai import types
 
-# Configure the Gemini API with the API key from environment variables
-# genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
 async def generate_content_async(input_text):
     try:
         # Initialize Gemini API client
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        # Generate content using Gemini API
-        MODEL_ID = "gemini-2.0-flash-lite" 
-        #model = client.generative_model(model_name=MODEL_ID)  # Use client.generative_model
+
+        MODEL_ID = "gemini-2.0-flash-lite"
+
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=input_text),
+                ],
+            )
+        ]
         
         system_instruction = """You are a very clever personal assistant of Ivan. You are going to be interacting with people through my personal website. As my personal assistant you SHOULD answer only questions about ME (Ivan). Focus answering the questions ALWAYS as professional questions. Now I'm going to give you facts about me (Ivan):
 
@@ -66,39 +71,77 @@ async def generate_content_async(input_text):
         # )
 
 
-        contents = [
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_text(text=input_text),
-                ],
-            )
-        ]
-
         # Run the asynchronous call generate_content using asyncio.run()
         # response = await client.aio.models.generate_content(
         #     model=MODEL_ID,
         #     contents=contents,
         #     config=generate_content_config,
         # )
+        tools = [
+                types.Tool(
+                    function_declarations=[
+                        types.FunctionDeclaration(
+                            name="makeAppointment",
+                            description="User's accepts with \"Yes\" to make an appoitment with Ivan",
+                            parameters=genai.types.Schema(
+                                type = genai.types.Type.OBJECT,
+                                properties = {
+                                    "date": genai.types.Schema(
+                                        type = genai.types.Type.OBJECT,
+                                        properties = {
+                                            "dayOfMonth": genai.types.Schema(
+                                                type = genai.types.Type.NUMBER,
+                                            ),
+                                            "Month": genai.types.Schema(
+                                                type = genai.types.Type.NUMBER,
+                                            ),
+                                            "Year": genai.types.Schema(
+                                                type = genai.types.Type.NUMBER,
+                                            ),
+                                            "timeOption": genai.types.Schema(
+                                                type = genai.types.Type.NUMBER,
+                                            ),
+                                        },
+                                    ),
+                                    "email": genai.types.Schema(
+                                        type = genai.types.Type.STRING,
+                                    ),
+                                    "name": genai.types.Schema(
+                                        type = genai.types.Type.STRING,
+                                    ),
+                                },
+                            ),
+                        ),
+                        types.FunctionDeclaration(
+                            name="sendCV",
+                            description="User accepts to be send Ivan's CV to his/her email",
+                            parameters=genai.types.Schema(
+                                type = genai.types.Type.OBJECT,
+                                properties = {
+                                    "email": genai.types.Schema(
+                                        type = genai.types.Type.STRING,
+                                    ),
+                                },
+                            ),
+                        ),
+                    ])
+            ]
+        
+        generate_content_config = types.GenerateContentConfig(
+            temperature=0.0,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            response_mime_type="text/plain",
+            system_instruction=[
+                types.Part.from_text(text=system_instruction),
+            ],
+        )
 
         response = await client.aio.models.generate_content(
             model=MODEL_ID, 
             contents=contents,
-            config=types.GenerateContentConfig(
-                temperature=0.0,
-                top_p=0.95,
-                top_k=40,
-                # candidate_count=1,
-                # seed=5,
-                max_output_tokens=8192,
-                system_instruction=[
-                    types.Part.from_text(text=system_instruction),
-                ],
-                # stop_sequences=["STOP!"],
-                # presence_penalty=0.0,
-                # frequency_penalty=0.0,
-            )
+            config=generate_content_config
         )
 
 
