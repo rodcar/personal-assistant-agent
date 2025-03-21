@@ -15,6 +15,15 @@ from google.genai.types import (
     Tool,
 )
 
+import base64
+# Replace EmailMessage import with these
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 # email
 #from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -29,7 +38,7 @@ from google.auth.transport.requests import Request
 with open(os.path.join(os.path.dirname(__file__), 'personal-assistant-2025-edcd74d26375.json')) as f:
     SERVICE_ACCOUNT_INFO = json.load(f)
 #SCOPES = ["https://www.googleapis.com/auth/calendar"]
-SCOPES = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"]
+SCOPES = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/gmail.send"]
 
 #credentials = service_account.Credentials.from_service_account_info(
 #    SERVICE_ACCOUNT_INFO, scopes=SCOPES
@@ -270,13 +279,57 @@ async def generate_content_async(chat):
                         ).execute()
 
                         print(event.get("htmlLink"))
-                    #if function_name == "suggest_wikipedia":
-                        #result = wikipedia.suggest(function_args["query"])
+                        api_response[function_name] = result
+                    if function_name == "sendCV":
+                        result = "CV sent successfully."
+                        try:
+                                service = build("gmail", "v1", credentials=creds)
+                                # Replace EmailMessage with MIMEMultipart
+                                message = MIMEMultipart()
+
+                                # Add text content as a part
+                                message.attach(MIMEText("This is an automated draft mail with attachment."))
+
+                                message["To"] = "ivanrod12@hotmail.com"
+                                message["From"] = "nnrodcar@gmail.com"
+                                message["Subject"] = "Automated draft with attachment"
+
+                                # Attach a file
+                                attachment_file_path = "CV.pdf"  # Replace with your file path
+                                with open(attachment_file_path, "rb") as attachment_file:
+                                    file_data = attachment_file.read()
+                                    file_name = os.path.basename(attachment_file_path)
+
+                                    part = MIMEBase("application", "pdf")
+                                    part.set_payload(file_data)
+                                    encoders.encode_base64(part)
+                                    part.add_header(
+                                        "Content-Disposition", f"attachment; filename={file_name}"
+                                    )
+
+                                    message.attach(part)
+
+                                # Convert message to string and then encode to base64
+                                encoded_message = base64.urlsafe_b64encode(message.as_string().encode()).decode()
+
+                                create_message = {"raw": encoded_message}
+
+                                # Send the message
+                                send_message = (
+                                    service.users()
+                                    .messages()
+                                    .send(userId="me", body=create_message)
+                                    .execute()
+                                )
+                                print(f'Message Id: {send_message["id"]}')
+                        except HttpError as error:
+                            print(f"An error occurred: {error}")
+                            send_message = None
                     #if function_name == "summarize_wikipedia":
                         #result = wikipedia.summary(function_args["topic"], auto_suggest=False)
 
                     # Collect all API responses
-                    api_response[function_name] = result
+                        api_response[function_name] = send_message
 
         if api_response:
             return json.dumps(api_response), 200, {'Content-Type': 'application/json'}
