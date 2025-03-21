@@ -150,19 +150,35 @@ def read_system_instruction(file_path):
         # Fall back to a simple instruction if the file can't be read   
         return "You are a helpful assistant for Ivan. Answer questions professionally."
 
-async def generate_content_async(chat):
+def check_free_time(service, date, start_time, end_time):
+    time_min = f"{date}T{start_time}+00:00"
+    time_max = f"{date}T{end_time}+00:00"
+    body = {
+        "timeMin": time_min,
+        "timeMax": time_max,
+        #"timeZone": PRINCIPAL_TIME_ZONE,
+        "items": [{"id": PRINCIPAL_CALENDAR_ID}]
+    }
+    try:
+        events_result = service.freebusy().query(body=body).execute()
+        busy_times = events_result['calendars'][PRINCIPAL_CALENDAR_ID]['busy']
+        return len(busy_times) == 0
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return False
+
+async def generate_content_async(chat_data):
     try:
         creds = get_credentials()
         # Initialize Google Calendar API
         service = build("calendar", "v3", credentials=creds)
         # Initialize Gemini API client
-        #client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
         client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
         MODEL_ID = "gemini-2.0-flash-lite"
 
-        # Use chat directly instead of parsing it again
-        data = chat
+        # Use chat_data directly instead of parsing it again
+        data = chat_data
 
         # Generate the contents list from the input_text list
         contents = [
@@ -176,58 +192,106 @@ async def generate_content_async(chat):
         ]
         
         # Read system instruction from file
-        # Use a relative path from the function's root directory
         system_instruction = read_system_instruction("system_instruction.txt")
 
         tools = [
-                types.Tool(
-                    function_declarations=[
-                        types.FunctionDeclaration(
-                            name="makeAppointment",
-                            description="User's accepts with \"Yes\" to make an appoitment with Ivan",
-                            parameters=genai.types.Schema(
-                                type = genai.types.Type.OBJECT,
-                                properties = {
-                                    "date": genai.types.Schema(
-                                        type = genai.types.Type.OBJECT,
-                                        properties = {
-                                            "dayOfMonth": genai.types.Schema(
-                                                type = genai.types.Type.NUMBER,
-                                            ),
-                                            "Month": genai.types.Schema(
-                                                type = genai.types.Type.NUMBER,
-                                            ),
-                                            "Year": genai.types.Schema(
-                                                type = genai.types.Type.NUMBER,
-                                            ),
-                                            "timeOption": genai.types.Schema(
-                                                type = genai.types.Type.NUMBER,
-                                            ),
-                                        },
-                                    ),
-                                    "email": genai.types.Schema(
-                                        type = genai.types.Type.STRING,
-                                    ),
-                                    "name": genai.types.Schema(
-                                        type = genai.types.Type.STRING,
-                                    ),
-                                },
-                            ),
+            types.Tool(
+                function_declarations=[
+                    types.FunctionDeclaration(
+                        name="makeAppointment",
+                        description="User's accepts with \"Yes\" to make an appoitment with Ivan",
+                        parameters=genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            properties = {
+                                "date": genai.types.Schema(
+                                    type = genai.types.Type.OBJECT,
+                                    properties = {
+                                        "dayOfMonth": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Month": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Year": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "timeOption": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                    },
+                                ),
+                                "email": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                                "name": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                            },
                         ),
-                        types.FunctionDeclaration(
-                            name="sendCV",
-                            description="User accepts to be send Ivan's CV to his/her email",
-                            parameters=genai.types.Schema(
-                                type = genai.types.Type.OBJECT,
-                                properties = {
-                                    "email": genai.types.Schema(
-                                        type = genai.types.Type.STRING,
-                                    ),
-                                },
-                            ),
+                    ),
+                    types.FunctionDeclaration(
+                        name="sendCV",
+                        description="User accepts to be send Ivan's CV to his/her email",
+                        parameters=genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            properties = {
+                                "email": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                            },
                         ),
-                    ])
-            ]
+                    ),
+                    types.FunctionDeclaration(
+                        name="check_free_time_specific_day",
+                        description="Check Ivan's availability for an specific date before booking",
+                        parameters=genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            properties = {
+                                "date": genai.types.Schema(
+                                    type = genai.types.Type.OBJECT,
+                                    properties = {
+                                        "dayOfMonth": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Month": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Year": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        )
+                                    },
+                                )
+                            },
+                        ),
+                    ),
+                    types.FunctionDeclaration(
+                        name="check_free_time_specific_day_and_time",
+                        description="Check Ivan's availability for an specific date and time before booking",
+                        parameters=genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            properties = {
+                                "date": genai.types.Schema(
+                                    type = genai.types.Type.OBJECT,
+                                    properties = {
+                                        "dayOfMonth": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Month": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "Year": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                        "timeOption": genai.types.Schema(
+                                            type = genai.types.Type.NUMBER,
+                                        ),
+                                    },
+                                )
+                            },
+                        ),
+                    ),
+                ])
+        ]
         
         generate_content_config = types.GenerateContentConfig(
             temperature=0.0,
@@ -268,41 +332,44 @@ async def generate_content_async(chat):
                         }
                         start_time, end_time = time_options.get(function_args['date']['timeOption'], ("10:00:00", "11:00:00"))
 
-                        event = {
-                            "summary": f"General Discussion",
-                            "description": "description",
-                            "start": {
-                                "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{start_time}",
-                                "timeZone": PRINCIPAL_TIME_ZONE
-                            },
-                            "end": {
-                                "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{end_time}",
-                                "timeZone": PRINCIPAL_TIME_ZONE
-                            },
-                            "conferenceData": {
-                                "createRequest": {
-                                    "requestId": str(uuid.uuid4()),
-                                    'conferenceSolutionKey': {
-                                        'type': 'hangoutsMeet'
-                                    },
-                                    'status': {
-                                        'statusCode': 'success'
+                        if not check_free_time(service, f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}", start_time, end_time):
+                            api_response[function_name] = "No slot time available"
+                        else:
+                            event = {
+                                "summary": f"General Discussion",
+                                "description": "description",
+                                "start": {
+                                    "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{start_time}",
+                                    "timeZone": PRINCIPAL_TIME_ZONE
+                                },
+                                "end": {
+                                    "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{end_time}",
+                                    "timeZone": PRINCIPAL_TIME_ZONE
+                                },
+                                "conferenceData": {
+                                    "createRequest": {
+                                        "requestId": str(uuid.uuid4()),
+                                        'conferenceSolutionKey': {
+                                            'type': 'hangoutsMeet'
+                                        },
+                                        'status': {
+                                            'statusCode': 'success'
+                                        }
                                     }
-                                }
-                            },
-                        }
+                                },
+                            }
 
-                        event = service.events().insert(
-                            calendarId=PRINCIPAL_CALENDAR_ID, body=event, conferenceDataVersion=1
-                        ).execute()
+                            event = service.events().insert(
+                                calendarId=PRINCIPAL_CALENDAR_ID, body=event, conferenceDataVersion=1
+                            ).execute()
 
-                        result = {
-                            "eventLink": event.get("htmlLink"),
-                            "meetLink": event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri', 'No Meet Link')
-                        }
+                            result = {
+                                "eventLink": event.get("htmlLink"),
+                                "meetLink": event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri', 'No Meet Link')
+                            }
 
-                        print(event.get("htmlLink"))
-                        api_response[function_name] = result
+                            print(event.get("htmlLink"))
+                            api_response[function_name] = result
                     if function_name == "sendCV":
                         result = "CV sent successfully."
                         try:
@@ -346,20 +413,73 @@ async def generate_content_async(chat):
                                     .execute()
                                 )
                                 print(f'Message Id: {send_message["id"]}')
+                                api_response[function_name] = result
                         except HttpError as error:
                             print(f"An error occurred: {error}")
                             send_message = None
+                    if function_name == "check_free_time_specific_day":
+                        date = function_args['date']
+                        day = date['dayOfMonth']
+                        month = date['Month']
+                        year = date['Year']
+                        date_str = f"{year}-{month:02d}-{day:02d}"
+                        
+                        # Check availability for specific times
+                        time_slots = [
+                            ("10:00:00", "11:00:00"),
+                            ("13:30:00", "14:30:00"),
+                            ("16:00:00", "17:00:00")
+                        ]
+                        
+                        availability = {}
+                        for start_time, end_time in time_slots:
+                            is_free = check_free_time(service, date_str, start_time, end_time)
+                            availability[f"{start_time}-{end_time}"] = is_free
+                        
+                        result = {
+                            "date": date_str,
+                            "availability": availability
+                        }
+                        
+                        api_response[function_name] = result
+                    if function_name == "check_free_time_specific_day_and_time":
+                        date = function_args['date']
+                        day = date['dayOfMonth']
+                        month = date['Month']
+                        year = date['Year']
+                        time_option = date['timeOption']
+                        
+                        # Determine start and end times based on timeOption
+                        time_options = {
+                            1: ("10:00:00", "11:00:00"),
+                            2: ("13:30:00", "14:30:00"),
+                            3: ("16:00:00", "17:00:00"),
+                        }
+                        start_time, end_time = time_options.get(time_option, ("10:00", "11:00"))
+                        
+                        date_str = f"{year}-{month:02d}-{day:02d}"
+                        
+                        # Check availability for the specific time
+                        is_free = check_free_time(service, date_str, start_time, end_time)
+                        
+                        result = {
+                            "date": date_str,
+                            "time": f"{start_time}-{end_time}",
+                            "is_free": is_free
+                        }
+                        
+                        api_response[function_name] = result
+
                     #if function_name == "summarize_wikipedia":
                         #result = wikipedia.summary(function_args["topic"], auto_suggest=False)
 
                     # Collect all API responses
-                        api_response[function_name] = send_message
+                    #api_response[function_name] = send_message
 
         if api_response:
             return json.dumps(api_response), 200, {'Content-Type': 'application/json'}
 
-        #if extracted_functions_called:
-            #return str(extracted_functions_called)
+            return json.dumps(response), 200, {'Content-Type': 'application/json'}
 
         return response.text
     except Exception as e:
