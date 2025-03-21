@@ -231,7 +231,7 @@ async def generate_content_async(chat_data):
                     ),
                     types.FunctionDeclaration(
                         name="sendCV",
-                        description="User accepts to be send Ivan's CV to his/her email",
+                        description="User shares his/her email to receive Ivan's CV",
                         parameters=genai.types.Schema(
                             type = genai.types.Type.OBJECT,
                             properties = {
