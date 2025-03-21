@@ -44,6 +44,8 @@ SCOPES = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.co
 #    SERVICE_ACCOUNT_INFO, scopes=SCOPES
 #)
 
+PRINCIPAL_EMAIL = "nnrodcar@gmail.com"
+
 def get_credentials():
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
@@ -288,11 +290,12 @@ async def generate_content_async(chat):
                                 message = MIMEMultipart()
 
                                 # Add text content as a part
-                                message.attach(MIMEText("This is an automated draft mail with attachment."))
+                                message.attach(MIMEText("Please find attached Ivan's CV."))
 
-                                message["To"] = "ivanrod12@hotmail.com"
-                                message["From"] = "nnrodcar@gmail.com"
-                                message["Subject"] = "Automated draft with attachment"
+                                # Use the provided email argument
+                                message["To"] = function_args["email"]
+                                message["From"] = PRINCIPAL_EMAIL
+                                message["Subject"] = "Ivan's CV"
 
                                 # Attach a file
                                 attachment_file_path = "CV.pdf"  # Replace with your file path
