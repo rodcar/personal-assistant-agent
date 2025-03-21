@@ -45,6 +45,8 @@ SCOPES = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.co
 #)
 
 PRINCIPAL_EMAIL = "nnrodcar@gmail.com"
+PRINCIPAL_CALENDAR_ID = "8fcf00a41b1d8b5ca37408238ce07c9d1abd6873e3d792f4cef9217853fcda02@group.calendar.google.com"
+PRINCIPAL_TIME_ZONE = "Europe/London"
 
 def get_credentials():
     creds = None
@@ -258,11 +260,25 @@ async def generate_content_async(chat):
                     if function_name == "makeAppointment":
                         result = "Appointment made successfully."
 
+                        # Determine start and end times based on timeOption
+                        time_options = {
+                            1: ("10:00:00", "11:00:00"),
+                            2: ("13:30:00", "14:30:00"),
+                            3: ("16:00:00", "17:00:00"),
+                        }
+                        start_time, end_time = time_options.get(function_args['date']['timeOption'], ("10:00:00", "11:00:00"))
+
                         event = {
-                            "summary": "Ivan Appointment",
+                            "summary": f"General Discussion",
                             "description": "description",
-                            "start": {"dateTime": "2025-03-25T10:00:00", "timeZone": "Europe/London"},
-                            "end": {"dateTime": "2025-03-25T11:00:00", "timeZone": "Europe/London"},
+                            "start": {
+                                "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{start_time}",
+                                "timeZone": PRINCIPAL_TIME_ZONE
+                            },
+                            "end": {
+                                "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{end_time}",
+                                "timeZone": PRINCIPAL_TIME_ZONE
+                            },
                             "conferenceData": {
                                 "createRequest": {
                                     "requestId": str(uuid.uuid4()),
@@ -277,8 +293,13 @@ async def generate_content_async(chat):
                         }
 
                         event = service.events().insert(
-                            calendarId="8fcf00a41b1d8b5ca37408238ce07c9d1abd6873e3d792f4cef9217853fcda02@group.calendar.google.com", body=event, conferenceDataVersion=1
+                            calendarId=PRINCIPAL_CALENDAR_ID, body=event, conferenceDataVersion=1
                         ).execute()
+
+                        result = {
+                            "eventLink": event.get("htmlLink"),
+                            "meetLink": event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri', 'No Meet Link')
+                        }
 
                         print(event.get("htmlLink"))
                         api_response[function_name] = result
