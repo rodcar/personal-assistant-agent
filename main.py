@@ -16,22 +16,44 @@ from google.genai.types import (
 )
 
 # email
-from google.oauth2 import service_account
+#from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
 
 # Load service account credentials from environment variable
 #os.getenv('GEMINI_API_KEY')
 #SERVICE_ACCOUNT_INFO = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
 with open(os.path.join(os.path.dirname(__file__), 'personal-assistant-2025-edcd74d26375.json')) as f:
     SERVICE_ACCOUNT_INFO = json.load(f)
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+#SCOPES = ["https://www.googleapis.com/auth/calendar"]
+SCOPES = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"]
 
-credentials = service_account.Credentials.from_service_account_info(
-    SERVICE_ACCOUNT_INFO, scopes=SCOPES
-)
+#credentials = service_account.Credentials.from_service_account_info(
+#    SERVICE_ACCOUNT_INFO, scopes=SCOPES
+#)
 
-# Initialize Google Calendar API
-service = build("calendar", "v3", credentials=credentials)
+def get_credentials():
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
 
 def extract_function_calls(response: GenerateContentResponse) -> list[dict]:
     if response.function_calls is None:
@@ -117,6 +139,9 @@ def read_system_instruction(file_path):
 
 async def generate_content_async(chat):
     try:
+        creds = get_credentials()
+        # Initialize Google Calendar API
+        service = build("calendar", "v3", credentials=creds)
         # Initialize Gemini API client
         #client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
         client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
@@ -230,7 +255,12 @@ async def generate_content_async(chat):
                             "conferenceData": {
                                 "createRequest": {
                                     "requestId": str(uuid.uuid4()),
-                                    
+                                    'conferenceSolutionKey': {
+                                        'type': 'hangoutsMeet'
+                                    },
+                                    'status': {
+                                        'statusCode': 'success'
+                                    }
                                 }
                             },
                         }
