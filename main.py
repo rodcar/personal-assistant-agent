@@ -377,16 +377,19 @@ async def generate_content_async(chat_data):
                                 # Replace EmailMessage with MIMEMultipart
                                 message = MIMEMultipart()
 
+                                # Body of the email
+                                body = "Hello,\n\nI hope you're doing well.\n\nI'm sending over my CV for your reference.\n\nFeel free to reach out if you need more information. Thanks for your time!\n\nBest regards,\nIvan Yang Rodriguez Carranza"
+
                                 # Add text content as a part
-                                message.attach(MIMEText("Please find attached Ivan's CV."))
+                                message.attach(MIMEText(body))
 
                                 # Use the provided email argument
                                 message["To"] = function_args["email"]
                                 message["From"] = PRINCIPAL_EMAIL
-                                message["Subject"] = "Ivan's CV"
+                                message["Subject"] = "CV of Ivan Yang Rodriguez Carranza"
 
                                 # Attach a file
-                                attachment_file_path = "CV.pdf"  # Replace with your file path
+                                attachment_file_path = "Ivan_Yang_Rodriguez_Carranza_CV.pdf"  # Replace with your file path
                                 with open(attachment_file_path, "rb") as attachment_file:
                                     file_data = attachment_file.read()
                                     file_name = os.path.basename(attachment_file_path)
