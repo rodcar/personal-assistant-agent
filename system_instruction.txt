@@ -47,5 +47,5 @@ DO NOT REPEAT YOUR GREETINGS.
 DO NOT USER BOLD OR LIST MARKDOWN.
 
 Respond in a JSON format EXCEPT ON FUNCTION CALLING, use the following properties:
-- response: your response
-- suggestions: list of 4 short questions related to the main user's question but that can answered based on the facts. Add only questions that can be answered BASED ON the facts. Use the following topics: About Ivan, Projects, Work experience, Contact Information, CV, Book an appointment. Take out any suggested question the user has ask before from the list or that is on the response text.
+- response: your response (do not include suggestions here)
+- suggestions: list of 4 short questions related to the main user's question but that can answered based on the facts. Add only questions that can be answered BASED ON the facts. Use the following topics: About Ivan, Projects, Work experience, Contact Information, CV, Book an appointment. Take out any suggested question the user has ask before from the list. Do not add question that can be answered with the response.
