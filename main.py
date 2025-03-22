@@ -340,7 +340,43 @@ async def generate_content_async(chat_data):
                         end_time_utc = datetime.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/London")).astimezone(ZoneInfo("UTC")).strftime("%H:%M")
 
                         if not check_free_time(service, date_str, start_time_utc, end_time_utc):
-                            api_response[function_name] = "No slot time available"
+                            # Check availability for other time slots on the same day
+                            other_time_slots = {
+                                1: ("10:00", "11:00"),
+                                2: ("13:30", "14:30"),
+                                3: ("16:00", "17:00"),
+                            }
+                            available_slots = {}
+                            for option, (start, end) in other_time_slots.items():
+                                if option != function_args['date']['timeOption']:
+                                    start_utc = datetime.datetime.strptime(f"{date_str} {start}", "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/London")).astimezone(ZoneInfo("UTC")).strftime("%H:%M")
+                                    end_utc = datetime.datetime.strptime(f"{date_str} {end}", "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/London")).astimezone(ZoneInfo("UTC")).strftime("%H:%M")
+                                    if check_free_time(service, date_str, start_utc, end_utc):
+                                        available_slots[option] = f"{start} - {end}"
+
+                            api_response[function_name] = {
+                                "message": "No slot time available",
+                                "available_slots": available_slots
+                            }
+
+                            contents.append(
+                                types.Content(
+                                    role="model",
+                                    parts=[
+                                        types.Part.from_text(text=f"""```Function call
+                        {json.dumps(api_response['makeAppointment'], indent=4)}
+                        ```"""),
+                                    ]
+                                )
+                            )
+
+                            response_function_calling = await client.aio.models.generate_content(
+                                model=MODEL_ID,
+                                contents=contents,
+                                config=generate_content_config
+                            )
+                            print(api_response)
+                            return response_function_calling.text
                         else:
                             event = {
                                 "summary": f"General Discussion",
@@ -498,8 +534,6 @@ async def generate_content_async(chat_data):
 
         if api_response:
             return json.dumps(api_response), 200, {'Content-Type': 'application/json'}
-
-            return json.dumps(response), 200, {'Content-Type': 'application/json'}
 
         return response.text
     except Exception as e:
