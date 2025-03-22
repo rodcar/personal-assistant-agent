@@ -365,9 +365,19 @@ async def generate_content_async(chat_data):
                                 calendarId=PRINCIPAL_CALENDAR_ID, body=event, conferenceDataVersion=1
                             ).execute()
 
+                            # Format the datetime as "July 15, 2024 at 2:30 PM"
+                            formatted_date = datetime.datetime(
+                                function_args['date']['Year'],
+                                function_args['date']['Month'],
+                                function_args['date']['dayOfMonth'],
+                                int(start_time.split(":")[0]),
+                                int(start_time.split(":")[1])
+                            ).strftime("%B %d, %Y at %I:%M %p")
+
                             result = {
                                 "eventLink": event.get("htmlLink"),
-                                "meetLink": event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri', 'No Meet Link')
+                                "meetLink": event.get('conferenceData', {}).get('entryPoints', [{}])[0].get('uri', 'No Meet Link'),
+                                "date": formatted_date
                             }
 
                             print(event.get("htmlLink"))
