@@ -153,12 +153,12 @@ def read_system_instruction(file_path):
         return "You are a helpful assistant for Ivan. Answer questions professionally."
 
 def check_free_time(service, date, start_time, end_time):
-    time_min = f"{date}T{start_time}+00:00"
-    time_max = f"{date}T{end_time}+00:00"
+    time_min = f"{date}T{start_time}:00Z"
+    time_max = f"{date}T{end_time}:00Z"
     body = {
         "timeMin": time_min,
         "timeMax": time_max,
-        #"timeZone": PRINCIPAL_TIME_ZONE,
+        "timeZone": "UTC",
         "items": [{"id": PRINCIPAL_CALENDAR_ID}]
     }
     try:
@@ -328,24 +328,29 @@ async def generate_content_async(chat_data):
 
                         # Determine start and end times based on timeOption
                         time_options = {
-                            1: ("10:00:00", "11:00:00"),
-                            2: ("13:30:00", "14:30:00"),
-                            3: ("16:00:00", "17:00:00"),
+                            1: ("10:00", "11:00"),
+                            2: ("13:30", "14:30"),
+                            3: ("16:00", "17:00"),
                         }
-                        start_time, end_time = time_options.get(function_args['date']['timeOption'], ("10:00:00", "11:00:00"))
+                        start_time, end_time = time_options.get(function_args['date']['timeOption'], ("10:00", "11:00"))
 
-                        if not check_free_time(service, f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}", start_time, end_time):
+                        # Convert to UTC for checking availability
+                        date_str = f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}"
+                        start_time_utc = datetime.datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/London")).astimezone(ZoneInfo("UTC")).strftime("%H:%M")
+                        end_time_utc = datetime.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Europe/London")).astimezone(ZoneInfo("UTC")).strftime("%H:%M")
+
+                        if not check_free_time(service, date_str, start_time_utc, end_time_utc):
                             api_response[function_name] = "No slot time available"
                         else:
                             event = {
                                 "summary": f"General Discussion",
                                 "description": "description",
                                 "start": {
-                                    "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{start_time}",
+                                    "dateTime": f"{date_str}T{start_time}:00",
                                     "timeZone": PRINCIPAL_TIME_ZONE
                                 },
                                 "end": {
-                                    "dateTime": f"{function_args['date']['Year']}-{function_args['date']['Month']:02d}-{function_args['date']['dayOfMonth']:02d}T{end_time}",
+                                    "dateTime": f"{date_str}T{end_time}:00",
                                     "timeZone": PRINCIPAL_TIME_ZONE
                                 },
                                 "conferenceData": {
