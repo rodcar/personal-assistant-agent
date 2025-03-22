@@ -243,58 +243,58 @@ async def generate_content_async(chat_data):
                             },
                         ),
                     ),
+                    # types.FunctionDeclaration(
+                    #     name="check_free_time_specific_day",
+                    #     description="Check Ivan's availability for an specific date before booking",
+                    #     parameters=genai.types.Schema(
+                    #         type = genai.types.Type.OBJECT,
+                    #         properties = {
+                    #             "date": genai.types.Schema(
+                    #                 type = genai.types.Type.OBJECT,
+                    #                 properties = {
+                    #                     "dayOfMonth": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                     "Month": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                     "Year": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     )
+                    #                 },
+                    #             )
+                    #         },
+                    #     ),
+                    # ),
+                    # types.FunctionDeclaration(
+                    #     name="check_free_time_specific_day_and_time",
+                    #     description="Check Ivan's availability for an specific date and time before booking",
+                    #     parameters=genai.types.Schema(
+                    #         type = genai.types.Type.OBJECT,
+                    #         properties = {
+                    #             "date": genai.types.Schema(
+                    #                 type = genai.types.Type.OBJECT,
+                    #                 properties = {
+                    #                     "dayOfMonth": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                     "Month": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                     "Year": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                     "timeOption": genai.types.Schema(
+                    #                         type = genai.types.Type.NUMBER,
+                    #                     ),
+                    #                 },
+                    #             )
+                    #         },
+                    #     ),
+                    # ),
                     types.FunctionDeclaration(
-                        name="check_free_time_specific_day",
-                        description="Check Ivan's availability for an specific date before booking",
-                        parameters=genai.types.Schema(
-                            type = genai.types.Type.OBJECT,
-                            properties = {
-                                "date": genai.types.Schema(
-                                    type = genai.types.Type.OBJECT,
-                                    properties = {
-                                        "dayOfMonth": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                        "Month": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                        "Year": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        )
-                                    },
-                                )
-                            },
-                        ),
-                    ),
-                    types.FunctionDeclaration(
-                        name="check_free_time_specific_day_and_time",
-                        description="Check Ivan's availability for an specific date and time before booking",
-                        parameters=genai.types.Schema(
-                            type = genai.types.Type.OBJECT,
-                            properties = {
-                                "date": genai.types.Schema(
-                                    type = genai.types.Type.OBJECT,
-                                    properties = {
-                                        "dayOfMonth": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                        "Month": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                        "Year": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                        "timeOption": genai.types.Schema(
-                                            type = genai.types.Type.NUMBER,
-                                        ),
-                                    },
-                                )
-                            },
-                        ),
-                    ),
-                    types.FunctionDeclaration(
-                        name="leaveMessage",
-                        description="User leave a message, name and email for Ivan",
+                        name="leaveOrSendAMessageTo",
+                        description="User leave or sends a message to Ivan",
                         parameters=genai.types.Schema(
                             type = genai.types.Type.OBJECT,
                             properties = {
@@ -544,15 +544,15 @@ async def generate_content_async(chat_data):
                         
                         api_response[function_name] = result
 
-                    if function_name == "leaveMessage":
-                        result = "Message sent successfully."
+                    if function_name == "leaveOrSendAMessageTo":
+                        result = "Message not sent successfully."
                         try:
                             service = build("gmail", "v1", credentials=creds)
                             # Replace EmailMessage with MIMEMultipart
                             message = MIMEMultipart()
 
                             # Body of the email
-                            body = function_args["message"]
+                            body = function_args["message"] + "\n\nBy: \n" + function_args["name"] + "\n" + function_args["email"]
 
                             # Add text content as a part
                             message.attach(MIMEText(body))
@@ -560,7 +560,8 @@ async def generate_content_async(chat_data):
                             # Use the provided email argument
                             message["To"] = PRINCIPAL_EMAIL
                             message["From"] = PRINCIPAL_EMAIL
-                            message["Subject"] = f"Message from {function_args['name']}\n\nBy: {function_args['email']}"
+                            # Remove newline characters from the subject
+                            message["Subject"] = f"Message from {function_args['name']}".replace("\n", " ")
 
                             # Convert message to string and then encode to base64
                             encoded_message = base64.urlsafe_b64encode(message.as_string().encode()).decode()
@@ -583,7 +584,7 @@ async def generate_content_async(chat_data):
                                     role="model",
                                     parts=[
                                         types.Part.from_text(text=f"""```Function call
-                        {json.dumps(api_response['leaveMessage'], indent=4)}
+                        {json.dumps(api_response['leaveOrSendAMessageTo'], indent=4)}
                         ```"""),
                                     ]
                                 )
@@ -610,6 +611,7 @@ async def generate_content_async(chat_data):
 
         return response.text
     except Exception as e:
+        print(f"An error occurred: {e}")
         raise e
 
 def generate_content(request):
