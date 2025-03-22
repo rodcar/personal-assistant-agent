@@ -292,6 +292,24 @@ async def generate_content_async(chat_data):
                             },
                         ),
                     ),
+                    types.FunctionDeclaration(
+                        name="leaveMessage",
+                        description="User leave a message, name and email for Ivan",
+                        parameters=genai.types.Schema(
+                            type = genai.types.Type.OBJECT,
+                            properties = {
+                                "message": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                                "name": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                                "email": genai.types.Schema(
+                                    type = genai.types.Type.STRING,
+                                ),
+                            },
+                        ),
+                    ),
                 ])
         ]
         
@@ -526,6 +544,61 @@ async def generate_content_async(chat_data):
                         
                         api_response[function_name] = result
 
+                    if function_name == "leaveMessage":
+                        result = "Message sent successfully."
+                        try:
+                            service = build("gmail", "v1", credentials=creds)
+                            # Replace EmailMessage with MIMEMultipart
+                            message = MIMEMultipart()
+
+                            # Body of the email
+                            body = function_args["message"]
+
+                            # Add text content as a part
+                            message.attach(MIMEText(body))
+
+                            # Use the provided email argument
+                            message["To"] = PRINCIPAL_EMAIL
+                            message["From"] = PRINCIPAL_EMAIL
+                            message["Subject"] = f"Message from {function_args['name']}\n\nBy: {function_args['email']}"
+
+                            # Convert message to string and then encode to base64
+                            encoded_message = base64.urlsafe_b64encode(message.as_string().encode()).decode()
+
+                            create_message = {"raw": encoded_message}
+
+                            # Send the message
+                            send_message = (
+                                service.users()
+                                .messages()
+                                .send(userId="me", body=create_message)
+                                .execute()
+                            )
+                            print(f'Message Id: {send_message["id"]}')
+                            api_response[function_name] = "Message sent successfully."
+
+
+                            contents.append(
+                                types.Content(
+                                    role="model",
+                                    parts=[
+                                        types.Part.from_text(text=f"""```Function call
+                        {json.dumps(api_response['leaveMessage'], indent=4)}
+                        ```"""),
+                                    ]
+                                )
+                            )
+
+                            response_function_calling = await client.aio.models.generate_content(
+                                model=MODEL_ID,
+                                contents=contents,
+                                config=generate_content_config
+                            )
+                            print(api_response)
+                            return response_function_calling.text
+                        except HttpError as error:
+                            print(f"An error occurred: {error}")
+                            send_message = None
                     #if function_name == "summarize_wikipedia":
                         #result = wikipedia.summary(function_args["topic"], auto_suggest=False)
 
