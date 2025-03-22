@@ -128,7 +128,8 @@ def read_system_instruction(file_path):
         dynamic_dates = generate_dynamic_dates()
         
         # Replace the hardcoded date section with dynamic dates
-        appointment_phrase = "One function you have is to book appointments for Ivan. Here is a useful reminder of the current dates and references the user may say,USE THE FOLLOWING LIST YOUR INTERNAL USE, DO NOT SHOW THE USER:"
+        #appointment_phrase = "One function you have is to book appointments for Ivan. Here is a useful reminder of the current dates and references the user may say,USE THE FOLLOWING LIST YOUR INTERNAL USE, DO NOT SHOW THE USER:"
+        appointment_phrase = "One function you have is to book appointments for Ivan. Here is a useful reminder of the current dates and references the user may say,USE THE FOLLOWING LIST WHEN THE USER WANT AN APPOINTMENT, THEN INTERPRET THE DATE USER SAYS:"
         available_times_phrase = "And here are the times Ivan is available for appointments"
         
         if appointment_phrase in content and available_times_phrase in content:
@@ -144,6 +145,7 @@ def read_system_instruction(file_path):
                     return before_dates + dynamic_dates + after_dates
         
         # If we couldn't find the markers or something went wrong, return the original content
+        print(content)
         return content
     except Exception as e:
         print(f"Error reading system instruction file: {e}")
