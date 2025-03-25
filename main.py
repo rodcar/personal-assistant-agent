@@ -204,9 +204,11 @@ async def generate_content_async(chat_data):
                         description="User's accepts with \"Yes\" to make an appoitment with Ivan",
                         parameters=genai.types.Schema(
                             type = genai.types.Type.OBJECT,
+                            required = ["name", "email"],
                             properties = {
                                 "date": genai.types.Schema(
                                     type = genai.types.Type.OBJECT,
+                                    required = ["dayOfMonth", "Month", "Year", "timeOption"],
                                     properties = {
                                         "dayOfMonth": genai.types.Schema(
                                             type = genai.types.Type.NUMBER,
@@ -236,6 +238,7 @@ async def generate_content_async(chat_data):
                         description="User shares his/her email to receive Ivan's CV",
                         parameters=genai.types.Schema(
                             type = genai.types.Type.OBJECT,
+                            required = ["email"],
                             properties = {
                                 "email": genai.types.Schema(
                                     type = genai.types.Type.STRING,
@@ -297,6 +300,7 @@ async def generate_content_async(chat_data):
                         description="User leave or sends a message to Ivan",
                         parameters=genai.types.Schema(
                             type = genai.types.Type.OBJECT,
+                            required = ["name", "message", "email"],
                             properties = {
                                 "message": genai.types.Schema(
                                     type = genai.types.Type.STRING,
@@ -578,28 +582,27 @@ async def generate_content_async(chat_data):
                             print(f'Message Id: {send_message["id"]}')
                             api_response[function_name] = "Message sent successfully."
 
+                            # contents.append(
+                            #     types.Content(
+                            #         role="tool",
+                            #         parts=[types.Part.from_text("Message sent successfully.")]
+                            #     )
+                            # )
 
-                            contents.append(
-                                types.Content(
-                                    role="model",
-                                    parts=[
-                                        types.Part.from_text(text=f"""```Function call
-                        {json.dumps(api_response['leaveOrSendAMessageTo'], indent=4)}
-                        ```"""),
-                                    ]
-                                )
-                            )
-
-                            response_function_calling = await client.aio.models.generate_content(
-                                model=MODEL_ID,
-                                contents=contents,
-                                config=generate_content_config
-                            )
-                            print(api_response)
-                            return response_function_calling.text
+                            # response_function_calling = await client.aio.models.generate_content(
+                            #     model=MODEL_ID,
+                            #     contents=contents,
+                            #     config=generate_content_config
+                            # )
+                            # print(api_response)
+                            # print(response_function_calling.text)
+                            return "Message sent successfully."
                         except HttpError as error:
                             print(f"An error occurred: {error}")
                             send_message = None
+                            if not function_args["email"]:
+                                result = "Please provide an email address to send the message."
+                            return result
                     #if function_name == "summarize_wikipedia":
                         #result = wikipedia.summary(function_args["topic"], auto_suggest=False)
 
@@ -641,7 +644,7 @@ def generate_content(request):
             return json.dumps({"error": "Missing 'chat' field in request"}), 400, {'Content-Type': 'application/json'}
         
         chat = request_data["chat"]
-        
+        print(chat)
         # Verify chat is a list
         if not isinstance(chat, list):
             return json.dumps({"error": f"'chat' must be a list, got {type(chat).__name__}"}), 400, {'Content-Type': 'application/json'}
