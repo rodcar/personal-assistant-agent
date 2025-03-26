@@ -386,7 +386,7 @@ async def generate_content_async(chat_data):
                                     role="model",
                                     parts=[
                                         types.Part.from_text(text=f"""```Function call
-                        {json.dumps(api_response['makeAppointment'], indent=4)}
+                        {json.dumps(api_response[function_name], indent=4)}
                         ```"""),
                                     ]
                                 )
